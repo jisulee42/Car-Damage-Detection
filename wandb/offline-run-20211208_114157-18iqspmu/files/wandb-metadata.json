@@ -1,0 +1,24 @@
+{
+    "os": "Windows-10-10.0.19043-SP0",
+    "python": "3.8.12",
+    "heartbeatAt": "2021-12-08T02:42:00.738045",
+    "startedAt": "2021-12-08T02:41:57.884220",
+    "docker": null,
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "gpu_count": 1,
+    "cpu_count": 16,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "d:\\01_Py_Workspace\\Detecting-and-Classifying-Car-Damage\\train.py",
+    "codePath": "train.py",
+    "git": {
+        "remote": "https://github.com/jslee1584/Car-Damage-Detection.git",
+        "commit": "32ba0344e796897b16bf8644bf1a60ef15966c69"
+    },
+    "email": "leejisu1584@gmail.com",
+    "root": "D:/01_Py_Workspace/Detecting-and-Classifying-Car-Damage",
+    "host": "DESKTOP-J62PJ64",
+    "username": "leeji",
+    "executable": "C:\\Users\\leeji\\anaconda3\\envs\\pytorch\\python.exe"
+}

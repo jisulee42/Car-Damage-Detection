@@ -1,0 +1,43 @@
+2021-12-08 11:50:33,169 INFO    MainThread:21184 [wandb_setup.py:_flush():71] setting env: {}
+2021-12-08 11:50:33,170 INFO    MainThread:21184 [wandb_setup.py:_flush():71] setting login settings: {}
+2021-12-08 11:50:33,170 INFO    MainThread:21184 [wandb_setup.py:_flush():71] setting login settings: {'mode': 'offline'}
+2021-12-08 11:50:33,170 INFO    MainThread:21184 [wandb_init.py:_log_setup():371] Logging user logs to D:\01_Py_Workspace\Detecting-and-Classifying-Car-Damage\wandb\offline-run-20211208_115033-2hon7yb5\logs\debug.log
+2021-12-08 11:50:33,170 INFO    MainThread:21184 [wandb_init.py:_log_setup():372] Logging internal logs to D:\01_Py_Workspace\Detecting-and-Classifying-Car-Damage\wandb\offline-run-20211208_115033-2hon7yb5\logs\debug-internal.log
+2021-12-08 11:50:33,171 INFO    MainThread:21184 [wandb_init.py:init():404] calling init triggers
+2021-12-08 11:50:33,171 INFO    MainThread:21184 [wandb_init.py:init():409] wandb.init called with sweep_config: {}
+config: {}
+2021-12-08 11:50:33,171 INFO    MainThread:21184 [wandb_init.py:init():449] starting backend
+2021-12-08 11:50:33,171 INFO    MainThread:21184 [backend.py:_multiprocessing_setup():95] multiprocessing start_methods=spawn, using: spawn
+2021-12-08 11:50:33,183 INFO    MainThread:21184 [backend.py:ensure_launched():199] starting backend process...
+2021-12-08 11:50:33,208 ERROR   MainThread:21184 [wandb_init.py:init():944] error
+Traceback (most recent call last):
+  File "C:\Users\leeji\anaconda3\envs\pytorch\lib\site-packages\wandb\sdk\wandb_init.py", line 917, in init
+    run = wi.init()
+  File "C:\Users\leeji\anaconda3\envs\pytorch\lib\site-packages\wandb\sdk\wandb_init.py", line 456, in init
+    backend.ensure_launched()
+  File "C:\Users\leeji\anaconda3\envs\pytorch\lib\site-packages\wandb\sdk\backend\backend.py", line 202, in ensure_launched
+    self.wandb_process.start()
+  File "C:\Users\leeji\anaconda3\envs\pytorch\lib\multiprocessing\process.py", line 121, in start
+    self._popen = self._Popen(self)
+  File "C:\Users\leeji\anaconda3\envs\pytorch\lib\multiprocessing\context.py", line 327, in _Popen
+    return Popen(process_obj)
+  File "C:\Users\leeji\anaconda3\envs\pytorch\lib\multiprocessing\popen_spawn_win32.py", line 45, in __init__
+    prep_data = spawn.get_preparation_data(process_obj._name)
+  File "C:\Users\leeji\anaconda3\envs\pytorch\lib\multiprocessing\spawn.py", line 154, in get_preparation_data
+    _check_not_importing_main()
+  File "C:\Users\leeji\anaconda3\envs\pytorch\lib\multiprocessing\spawn.py", line 134, in _check_not_importing_main
+    raise RuntimeError('''
+RuntimeError: 
+        An attempt has been made to start a new process before the
+        current process has finished its bootstrapping phase.
+
+        This probably means that you are not using fork to start your
+        child processes and you have forgotten to use the proper idiom
+        in the main module:
+
+            if __name__ == '__main__':
+                freeze_support()
+                ...
+
+        The "freeze_support()" line can be omitted if the program
+        is not going to be frozen to produce an executable.
