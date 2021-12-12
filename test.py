@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 import argparse
 
-from model import UNet
+from models import UNet
 from dataset import *
 from util import *
 

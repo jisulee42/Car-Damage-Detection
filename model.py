@@ -21,7 +21,7 @@ class UNet(nn.Module):
             return cbr
 
         ## Contracting Path
-        self.enc1_1 = CBR2d(in_channels=1, out_channels=64)
+        self.enc1_1 = CBR2d(in_channels=3, out_channels=64)
         self.enc1_2 = CBR2d(in_channels=64, out_channels=64)
 
         self.pool1 = nn.MaxPool2d(kernel_size=2)

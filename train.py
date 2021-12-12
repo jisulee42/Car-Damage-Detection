@@ -7,19 +7,22 @@ import argparse
 import torch.nn.functional as F
 #import wandb
 #wandb.init(project="U-Net", entity="kim1lee3")
+from itertools import chain
+import time
+from tqdm import tqdm
 
 #from model._unet import UNet
 from model import UNet
 from dataset import *
 from util import *
-from loss import loss_coteaching
+from loss import loss_coteaching, co_teaching_loss
 
 # Parsing Inputs
 parser = argparse.ArgumentParser(description="Train the Model",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--lr", default=1e-3, type=float, dest="lr")
-parser.add_argument("--batch_size", default=4, type=int, dest="batch_size")
+parser.add_argument("--batch_size", default=2, type=int, dest="batch_size")
 parser.add_argument("--num_epoch", default=100, type=int, dest="num_epoch")
 
 parser.add_argument("--data_dir", default="../datasets_gray_npy/dent", type=str, dest="data_dir")
@@ -86,24 +89,23 @@ num_batch_val = np.ceil(num_data_val / batch_size)
 noise_or_not = np.full(num_data_train, True)
 
 # Creating Network
-net = UNet().to(device)
+net1 = UNet().to(device)
 net2 = UNet().to(device)
 
 
 # Defining Loss Function
 fn_loss = nn.BCEWithLogitsLoss().to(device)
 
-
 # Defining Optimizer
-optim1 = torch.optim.Adam(net.parameters(), lr=lr)
-optim2 = torch.optim.Adam(net2.parameters(), lr=lr)
-
+#optim1 = torch.optim.Adam(net.parameters(), lr=lr)
+#optim2 = torch.optim.Adam(net2.parameters(), lr=lr)
+optim = torch.optim.Adam(chain(net1.parameters(), net2.parameters()), lr=lr)
 
 # Train
 st_epoch = 0
 
 if train_continue == "on":
-    net, optim, st_epoch = load(ckpt_dir=ckpt_dir, net=net, optim=optim)
+    net1, optim, st_epoch = load(ckpt_dir=ckpt_dir, net=net1, optim=optim)
 
 def accuracy(logit, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
@@ -121,6 +123,7 @@ def accuracy(logit, target, topk=(1,)):
         correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
+    
 # ---
 pure_ratio_list=[]
 pure_ratio_1_list=[]
@@ -131,68 +134,82 @@ train_correct=0
 train_total2=0
 train_correct2=0 
 
-def train():
-    for epoch in range(st_epoch + 1, num_epoch + 1):
-        net.train()
-        loss_train = []
+def update_reduce_step(cur_step, num_gradual, tau=0.5):
+    return 1.0 - tau * min(cur_step / num_gradual, 1)
 
-        for batch, (data, indexes) in enumerate(loader_train, 1):
-            ind = indexes.cpu().numpy().transpose()
-            # forward pass
-            img = data['img'].to(device)
-            label = data['label'].to(device)
-            # Forward
-            logits1 = net(img)
-            prec1, _ = accuracy(logits1, label, topk=(1,5))
-            train_total += 1
-            train_correct += prec1
+for epoch in range(st_epoch + 1, num_epoch + 1):
+    start = time.time()  # 시작 시간 저장
+    net1.train()
+    net2.train()
+    loss_train = []
+    
+    avg_loss = 0.
+    avg_accuracy = 0.
+    global_step = 0
+    
+    rt = update_reduce_step(cur_step=epoch, num_gradual=5, tau=0.5)
 
-            logits2 = net2(img)
-            prec2, _ = accuracy(logits2, label, topk=(1,5))
-            train_total2 += 1
-            train_correct2 += prec2
+    for batch, (data, indexes) in enumerate(tqdm(loader_train), 1):
+        #avg_loss = 0
+        # forward pass
+        img = data['img'].to(device)
+        label = data['label'].to(device)
+        
+        # Forward
+        logits1 = net1(img)
+        logits2 = net2(img)
+    
+        #prec2, _ = accuracy(logits2, label, topk=(1,5))
+        #train_total2 += 1
+        #train_correct2 += prec2
+        ind = indexes.cpu().numpy().transpose()
+        
+        model1_loss, model2_loss = co_teaching_loss(logits1, logits2, label, rt=rt)
+        # model1_loss.requires_grad = True
+        # model2_loss.requires_grad = True
 
-            loss_1, loss_2, pure_ratio_1, pure_ratio_2 = loss_coteaching(logits1, logits2, label, rate_schedule[epoch], ind, noise_or_not)
-            pure_ratio_1_list.append(100*pure_ratio_1)
-            pure_ratio_2_list.append(100*pure_ratio_2)
-            # backward Backward Optimize
-            
-            optim1.zero_grad()
-            loss_1.backward()
-            optim1.step()
-            optim2.zero_grad()
-            loss_2.backward()
-            optim2.step()
+        # backward Backward Optimize
+        optim.zero_grad()
+        model1_loss.backward()
+        torch.nn.utils.clip_grad_norm_(net1.parameters(), 5.0)
+        optim.step()
 
-            # calculate loss function
-            loss_train += [loss.item()]
-            if batch%10 == 0:
-                print("Train: EPOCH %04d / %04d | BATCH %04d \ %04d | LOSS %.4f"
-                    % (epoch, num_epoch, batch, num_batch_train, np.mean(loss_train)))
+        optim.zero_grad()
+        model2_loss.backward()
+        torch.nn.utils.clip_grad_norm_(net2.parameters(), 5.0)
+        optim.step() 
 
-        # wandb.log({"train loss": np.mean(loss_train)})
+        avg_loss += (model1_loss.item() + model2_loss.item())
 
-        with torch.no_grad():
-            net.eval()
-            loss_valid = []
+        # calculate loss function
+        #if batch%10 == 0:
+            #print("Train: EPOCH %04d / %04d | BATCH %04d \ %04d | LOSS %.4f"
+                #% (epoch, num_epoch, batch, num_batch_train, avg_loss))
+        global_step += 1
+    
+    print("Train: EPOCH %04d / %04d | LOSS %.4f | Time: %.2fs"
+                % (epoch, num_epoch, avg_loss/global_step, time.time() - start))
 
-            for batch, data in enumerate(loader_val, 1):
-                # forward pass
-                img = data['img'].to(device)
-                label = data['label'].to(device)
-                output = net(img)
+    # wandb.log({"train loss": np.mean(loss_train)})
 
-                # calculate loss function
-                loss = fn_loss(output, label)
-                loss_valid += [loss.item()]
-                if batch%10 == 0:
-                    print("Validation: EPOCH %04d / %04d | BATCH %04d \ %04d | LOSS %.4f"
-                        % (epoch, num_epoch, batch, num_batch_val, np.mean(loss_valid)))
+    # with torch.no_grad():
+    #     net.eval()
+    #     loss_valid = []
 
-        # wandb.log({"valid loss": np.mean(loss_valid)})
+    #     for batch, data in enumerate(loader_val, 1):
+    #         # forward pass
+    #         img = data['img'].to(device)
+    #         label = data['label'].to(device)
+    #         output = net(img)
 
-        if epoch % 10 == 0:
-            save(ckpt_dir=ckpt_dir, net=net, optim=optim, epoch=epoch)
+    #         # calculate loss function
+    #         loss = fn_loss(output, label)
+    #         loss_valid += [loss.item()]
+    #         if batch%10 == 0:
+    #             print("Validation: EPOCH %04d / %04d | BATCH %04d \ %04d | LOSS %.4f"
+    #                 % (epoch, num_epoch, batch, num_batch_val, np.mean(loss_valid)))
 
-if __name__ == "__main__":
-    train()
+    # wandb.log({"valid loss": np.mean(loss_valid)})
+
+    if epoch % 10 == 0:
+        save(ckpt_dir=ckpt_dir, net1=net1, net2=net2, optim=optim, epoch=epoch)

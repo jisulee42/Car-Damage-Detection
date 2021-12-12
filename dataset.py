@@ -43,7 +43,7 @@ class Dataset(torch.utils.data.Dataset):
         if self.transform:
             data = self.transform(data)
 
-        return data
+        return data, index
 
 
 # Changing Data to Tensor
