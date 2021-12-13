@@ -4,12 +4,16 @@ import torch
 
 
 # Saving Network
-def save(ckpt_dir, net, optim, epoch):
+def save(ckpt_dir, net1, net2, optim, epoch):
     if not os.path.exists(ckpt_dir):
         os.makedirs(ckpt_dir)
 
-    torch.save({'net': net.state_dict(), 'optim': optim.state_dict()},
-               "%s/model_epoch%d.pth" % (ckpt_dir, epoch))
+    torch.save({'net': net1.state_dict(), 'optim': optim.state_dict()},
+               "%s/model1_epoch%d.pth" % (ckpt_dir, epoch))
+
+    torch.save({'net2': net1.state_dict(), 'optim': optim.state_dict()},
+               "%s/model2_epoch%d.pth" % (ckpt_dir, epoch))
+    
 
 
 # Loading Network

@@ -32,7 +32,7 @@ parser.add_argument("--train_continue", default="off", type=str, dest="train_con
 parser.add_argument('--noise_rate', type = float, help = 'corruption rate, should be less than 1', default = 0.2)
 parser.add_argument('--forget_rate', type = float, help = 'forget rate', default = None)
 parser.add_argument('--num_gradual', type = int, default = 10, help='how many epochs for linear drop rate, can be 5, 10, 15. This parameter is equal to Tk for R(T) in Co-teaching paper.')
-
+parser.add_argument('--loss', type=str, dest='loss')
 args = parser.parse_args()
 
 
@@ -45,6 +45,7 @@ data_dir = args.data_dir
 ckpt_dir = args.ckpt_dir
 
 train_continue = args.train_continue
+loss = args.loss
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -92,14 +93,10 @@ noise_or_not = np.full(num_data_train, True)
 net1 = UNet().to(device)
 net2 = UNet().to(device)
 
-
-# Defining Loss Function
-fn_loss = nn.BCEWithLogitsLoss().to(device)
-
 # Defining Optimizer
 #optim1 = torch.optim.Adam(net.parameters(), lr=lr)
 #optim2 = torch.optim.Adam(net2.parameters(), lr=lr)
-optim = torch.optim.Adam(chain(net1.parameters(), net2.parameters()), lr=lr)
+optim = torch.optim.Adam(chain(net1.parameters(), net2.parameters()), lr=lr, weight_decay=0.1)
 
 # Train
 st_epoch = 0
@@ -156,15 +153,15 @@ for epoch in range(st_epoch + 1, num_epoch + 1):
         label = data['label'].to(device)
         
         # Forward
-        logits1 = net1(img)
-        logits2 = net2(img)
+        output1 = net1(img)
+        output2 = net2(img)
     
         #prec2, _ = accuracy(logits2, label, topk=(1,5))
         #train_total2 += 1
         #train_correct2 += prec2
-        ind = indexes.cpu().numpy().transpose()
+        #ind = indexes.cpu().numpy().transpose()
         
-        model1_loss, model2_loss = co_teaching_loss(logits1, logits2, label, rt=rt)
+        model1_loss, model2_loss = co_teaching_loss(loss, device, output1, output2, label, rt=rt)
         # model1_loss.requires_grad = True
         # model2_loss.requires_grad = True
 
@@ -178,7 +175,7 @@ for epoch in range(st_epoch + 1, num_epoch + 1):
         model2_loss.backward()
         torch.nn.utils.clip_grad_norm_(net2.parameters(), 5.0)
         optim.step() 
-
+        
         avg_loss += (model1_loss.item() + model2_loss.item())
 
         # calculate loss function

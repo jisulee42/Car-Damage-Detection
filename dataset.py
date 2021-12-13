@@ -33,6 +33,7 @@ class Dataset(torch.utils.data.Dataset):
         img = img / 255.0
         label = label / 255.0
 
+        
         if img.ndim == 2:
             img = img[:, :, np.newaxis]
         if label.ndim == 2:
